@@ -57,6 +57,15 @@
       </view>
     </view>
 
+    <!-- 双侧占路：仅中央分隔带施工可选（上/下行同时布控，180° 对称） -->
+    <view class="field" wx:if="{{p.workSide === 'median'}}">
+      <view class="label">占路方式</view>
+      <view class="seg">
+        <view class="segItem {{!p.doubleSide ? 'active' : ''}}" data-value="false" bindtap="onDoubleSide">单侧占路</view>
+        <view class="segItem {{p.doubleSide ? 'active' : ''}}" data-value="true" bindtap="onDoubleSide">双侧占路</view>
+      </view>
+    </view>
+
     <view class="field">
       <view class="label">上游过渡区基准长度（m）</view>
       <input

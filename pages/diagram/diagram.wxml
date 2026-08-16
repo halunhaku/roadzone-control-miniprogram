@@ -61,7 +61,7 @@
       <view class="tcell c1">{{item.no}}</view>
       <view class="tcell c2 nameCell">
         <view class="dot" style="background: {{item.color}}"></view>
-        <text>{{item.name}}</text>
+        <text>{{item.dir ? item.dir + ' · ' : ''}}{{item.name}}</text>
       </view>
       <view class="tcell c3">{{item.length}}</view>
       <view class="tcell c4">{{item.start}}</view>

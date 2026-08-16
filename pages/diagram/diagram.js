@@ -1,5 +1,5 @@
-const { defaults, buildZones, stake } = require('../../utils/calc');
-const { signSchedule } = require('../../utils/schedule');
+const { defaults, buildZones, stake, mirrorZones } = require('../../utils/calc');
+const { signSchedule, signScheduleDouble } = require('../../utils/schedule');
 const { drawDiagram, drawA4Sheet, svgWidthFor, VIEW_H } = require('../../utils/draw');
 
 Page({
@@ -15,34 +15,59 @@ Page({
 
   onLoad() {
     this.params = wx.getStorageSync('rz:params') || Object.assign({}, defaults);
+    // 旧版本存储的参数没有 doubleSide 字段，统一归一为布尔
+    this.params.doubleSide = !!this.params.doubleSide;
     this.zoom = 1;
     this.zones = buildZones(this.params);
-    this.signRows = signSchedule(this.zones, this.params.direction);
+    this.signRows = this.params.doubleSide
+      ? signScheduleDouble(this.zones, this.params.direction)
+      : signSchedule(this.zones, this.params.direction);
 
     const { zones, params } = this;
     const direction = params.direction;
     const total = zones.reduce((s, z) => s + z.length, 0);
     const dirText = direction === 'up' ? '上行' : '下行';
     const sideText = params.workSide === 'median' ? '中央分隔带' : '路侧';
+    const primaryDir = dirText;
+    const mirrorDir = primaryDir === '上行' ? '下行' : '上行';
+    const mirrored = params.doubleSide ? mirrorZones(zones, direction) : null;
+
+    // 双侧占路：分区表两车道合并（方向前缀），序号连续
+    const mergedZones = params.doubleSide
+      ? [
+          ...zones.map(z => ({ z, dir: primaryDir })),
+          ...mirrored.map(z => ({ z, dir: mirrorDir })),
+        ]
+      : zones.map(z => ({ z, dir: '' }));
+
+    // 影响路段取全部车道（含镜像侧）的桩号极值
+    const allZones = params.doubleSide ? zones.concat(mirrored) : zones;
+    let minStake = Infinity;
+    let maxStake = -Infinity;
+    allZones.forEach(z => {
+      minStake = Math.min(minStake, z.start, z.end);
+      maxStake = Math.max(maxStake, z.start, z.end);
+    });
 
     this.setData({
       summary: [
         { k: '作业区范围', v: `${stake(zones[3].start)} ~ ${stake(zones[3].end)}` },
         { k: '过渡区/缓冲区实际长度', v: `${zones[1].length}m / ${zones[2].length}m` },
         { k: '布置总长度', v: `${total}m` },
-        { k: '影响路段', v: `${stake(zones[0].start)} ~ ${stake(zones[zones.length - 1].end)}` },
-        { k: '方向', v: dirText },
-        { k: '施工位置', v: sideText },
+        { k: '影响路段', v: `${stake(minStake)} ~ ${stake(maxStake)}` },
+        { k: '方向', v: params.doubleSide ? '上/下行' : dirText },
+        { k: '施工位置', v: params.doubleSide ? `${sideText}（双侧占路）` : sideText },
       ],
       legend: zones.map(z => ({ key: z.key, color: z.color, name: z.name })),
-      tableZones: zones.map((z, i) => ({
-        key: z.key,
+      tableZones: mergedZones.map((row, i) => ({
+        key: `${row.dir}-${row.z.key}`,
         no: i + 1,
-        name: z.name,
-        color: z.color,
-        length: `${z.length}m`,
-        start: stake(z.start),
-        end: stake(z.end),
+        dir: row.dir,
+        name: row.z.name,
+        color: row.z.color,
+        length: `${row.z.length}m`,
+        start: stake(row.z.start),
+        end: stake(row.z.end),
       })),
       tableSigns: this.signRows.map(r => ({ no: r[0], name: r[1], stake: r[2], desc: r[3] })),
     });
@@ -55,7 +80,7 @@ Page({
   /* ── canvas 渲染 ── */
 
   render() {
-    const svgWidth = svgWidthFor(this.zones, this.params.direction);
+    const svgWidth = svgWidthFor(this.zones, this.params.direction, this.params.doubleSide);
     const cssW = Math.round(svgWidth * this.zoom);
     const cssH = Math.round(VIEW_H * this.zoom);
     this.setData({ canvasW: cssW, canvasH: cssH, zoomPct: Math.round(this.zoom * 100) }, () => {
@@ -78,13 +103,14 @@ Page({
         canvas.height = Math.round(info.height * dpr);
         this.canvasNode = canvas;
         const ctx = canvas.getContext('2d');
-        const svgWidth = svgWidthFor(this.zones, this.params.direction);
+        const svgWidth = svgWidthFor(this.zones, this.params.direction, this.params.doubleSide);
         ctx.setTransform(canvas.width / svgWidth, 0, 0, canvas.width / svgWidth, 0, 0);
         drawDiagram(ctx, {
           zones: this.zones,
           direction: this.params.direction,
           workSide: this.params.workSide,
           coneGap: this.params.coneGap,
+          doubleSide: this.params.doubleSide,
         });
       });
   },
@@ -150,6 +176,7 @@ Page({
         start: this.params.start,
         total,
         signRows: this.signRows,
+        doubleSide: this.params.doubleSide,
       });
       wx.canvasToTempFilePath({
         canvas,

@@ -33,7 +33,17 @@ Page({
   },
 
   onWorkSide(e) {
-    const p = Object.assign({}, this.data.p, { workSide: e.currentTarget.dataset.value });
+    const value = e.currentTarget.dataset.value;
+    // 双侧占路仅中央分隔带施工可选：切回路侧时复位
+    const p = Object.assign({}, this.data.p, {
+      workSide: value,
+      doubleSide: value === 'median' ? this.data.p.doubleSide : false,
+    });
+    this.setData({ p });
+  },
+
+  onDoubleSide(e) {
+    const p = Object.assign({}, this.data.p, { doubleSide: e.currentTarget.dataset.value === 'true' });
     this.setData({ p });
   },
 
