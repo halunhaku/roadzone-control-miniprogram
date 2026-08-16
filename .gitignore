@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+
+# 微信开发者工具本地私有配置（含本地调试设置）
+project.private.config.json
+
+# 情况说明文档（含隐私内容，不上传）
+小程序情况说明/
+
+# 构建产物
+node_modules/
+miniprogram_npm/

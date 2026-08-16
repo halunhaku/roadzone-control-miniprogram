@@ -1,0 +1,216 @@
+.page {
+  padding: 24rpx 24rpx 0;
+}
+
+/* ── 概览 ── */
+.summary {
+  display: flex;
+  flex-direction: column;
+  padding: 12rpx 28rpx;
+}
+.summaryItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 12rpx 0;
+  box-sizing: border-box;
+}
+.summaryItem .k {
+  font-size: 24rpx;
+  color: var(--ink-3);
+  flex-shrink: 0;
+  margin-right: 24rpx;
+}
+.summaryItem .v {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 图例 + 工具 ── */
+.canvasHead {
+  margin-bottom: 16rpx;
+}
+.legend {
+  white-space: nowrap;
+  margin-bottom: 16rpx;
+}
+.lg {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 24rpx;
+  font-size: 24rpx;
+  color: var(--ink-4);
+}
+.swatch {
+  width: 22rpx;
+  height: 22rpx;
+  border-radius: 6rpx;
+  margin-right: 8rpx;
+}
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.zoomBtns {
+  display: flex;
+  gap: 10rpx;
+}
+.zbtn {
+  min-width: 64rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  text-align: center;
+  background: var(--fill-raised);
+  border: 2rpx solid var(--line);
+  border-radius: 10rpx;
+  font-size: 30rpx;
+  color: var(--ink);
+  padding: 0 16rpx;
+  box-sizing: border-box;
+  transition: transform 100ms ease-out, background-color 200ms ease;
+}
+.zbtn:active {
+  transform: scale(0.97);
+}
+.zbtn.reset {
+  font-size: 24rpx;
+  color: var(--ink-2);
+}
+.zoomSlider {
+  flex: 1;
+  min-width: 0;
+}
+.zoomLevel {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  width: 88rpx;
+  text-align: right;
+}
+
+/* ── 布置图画布区 ── */
+.diagramScroll {
+  width: 100%;
+  background: var(--card);
+  border-radius: 16rpx;
+  border: 2rpx solid var(--line);
+  box-sizing: border-box;
+}
+.roadCanvas {
+  display: block;
+}
+
+/* ── 导出操作条（毛玻璃浮动材质） ── */
+.actions {
+  display: flex;
+  gap: 20rpx;
+  margin: 24rpx 0;
+  padding: 16rpx;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1rpx solid rgba(255, 255, 255, 0.6);
+  border-radius: 24rpx;
+}
+.btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 16rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  padding: 0;
+  margin: 0;
+  transition: transform 100ms ease-out, background-color 200ms ease;
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn::after {
+  border: none;
+}
+.btn.primary {
+  background: linear-gradient(135deg, #ff9f0a, #ff7a1a);
+  color: #fff;
+}
+.btn.secondary {
+  background: var(--fill-raised);
+  color: var(--ink);
+  border: 2rpx solid var(--line-2);
+  box-sizing: border-box;
+}
+
+/* ── 明细表 ── */
+.tableCard {
+  padding: 24rpx 20rpx;
+}
+.tableTitle {
+  font-size: 28rpx;
+  font-weight: 700;
+  margin-bottom: 16rpx;
+}
+.trow {
+  display: flex;
+  align-items: center;
+  border-bottom: 2rpx solid var(--fill);
+  padding: 18rpx 0;
+}
+.trow:last-child {
+  border-bottom: none;
+}
+.trow.thead {
+  border-bottom: 2rpx solid var(--line);
+  padding: 10rpx 0;
+}
+.tcell {
+  font-size: 24rpx;
+  color: var(--ink-4);
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trow.thead .tcell {
+  color: var(--ink-3);
+  font-size: 22rpx;
+}
+.c1 { width: 10%; }
+.c2 { width: 26%; }
+.c3 { width: 16%; }
+.c4 { width: 24%; }
+.c5 { width: 24%; }
+.s1 { width: 10%; }
+.s2 { width: 36%; }
+.s3 { width: 24%; }
+.s4 { width: 30%; }
+.nameCell {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+.nameCell .dot {
+  width: 18rpx;
+  height: 18rpx;
+  border-radius: 4rpx;
+  flex-shrink: 0;
+}
+
+/* ── 深色模式：毛玻璃操作条单独适配 ── */
+@media (prefers-color-scheme: dark) {
+  .actions {
+    background: rgba(28, 28, 30, 0.72);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+}

@@ -1,0 +1,141 @@
+<view class="page pageIn">
+  <view class="hero">
+    <view class="mark">RZ</view>
+    <view class="heroText">
+      <view class="title">高速公路作业区布置系统</view>
+      <view class="subtitle">Work Zone Layout Planner</view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="cardTitle">输入参数</view>
+
+    <view class="field">
+      <view class="label">作业区起点（桩号）</view>
+      <input
+        class="input {{errors.start ? 'hasError' : ''}}"
+        value="{{p.start}}"
+        data-key="start"
+        bindinput="onInput"
+        placeholder="如 K123+800"
+        placeholder-class="ph"
+      />
+      <view wx:if="{{errors.start}}" class="err">{{errors.start}}</view>
+    </view>
+
+    <view class="field">
+      <view class="label">作业区长度（m）</view>
+      <input
+        class="input {{errors.work ? 'hasError' : ''}}"
+        type="digit"
+        value="{{p.work}}"
+        data-key="work"
+        bindinput="onInput"
+      />
+      <view wx:if="{{errors.work}}" class="err">{{errors.work}}</view>
+    </view>
+
+    <view class="field">
+      <view class="label">作业区方向</view>
+      <view class="seg">
+        <view class="segItem {{p.direction === 'up' ? 'active' : ''}}" data-value="up" bindtap="onDirection">上行</view>
+        <view class="segItem {{p.direction === 'down' ? 'active' : ''}}" data-value="down" bindtap="onDirection">下行</view>
+      </view>
+    </view>
+
+    <view class="field">
+      <view class="label">施工位置</view>
+      <view class="radioStack">
+        <view class="radioCard {{p.workSide === 'roadside' ? 'active' : ''}}" data-value="roadside" bindtap="onWorkSide">
+          <view class="radioDot"></view>
+          <text>路侧</text>
+        </view>
+        <view class="radioCard {{p.workSide === 'median' ? 'active' : ''}}" data-value="median" bindtap="onWorkSide">
+          <view class="radioDot"></view>
+          <text>中央分隔带</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="field">
+      <view class="label">上游过渡区基准长度（m）</view>
+      <input
+        class="input {{errors.taper ? 'hasError' : ''}}"
+        type="digit"
+        value="{{p.taper}}"
+        data-key="taper"
+        bindinput="onInput"
+      />
+      <view wx:if="{{errors.taper}}" class="err">{{errors.taper}}</view>
+    </view>
+
+    <view class="field">
+      <view class="label">缓冲区基准长度（m）</view>
+      <input
+        class="input {{errors.buffer ? 'hasError' : ''}}"
+        type="digit"
+        value="{{p.buffer}}"
+        data-key="buffer"
+        bindinput="onInput"
+      />
+      <view wx:if="{{errors.buffer}}" class="err">{{errors.buffer}}</view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="cardTitle clickable" bindtap="toggleAdvanced">
+      <text>高级参数</text>
+      <text class="chevron {{showAdvanced ? 'open' : ''}}">▾</text>
+    </view>
+    <view wx:if="{{showAdvanced}}">
+      <view class="field">
+        <view class="label">警告区长度（m）</view>
+        <input
+          class="input {{errors.warning ? 'hasError' : ''}}"
+          type="digit"
+          value="{{p.warning}}"
+          data-key="warning"
+          bindinput="onInput"
+        />
+        <view wx:if="{{errors.warning}}" class="err">{{errors.warning}}</view>
+      </view>
+      <view class="field">
+        <view class="label">下游过渡区长度（m）</view>
+        <input
+          class="input {{errors.downstream ? 'hasError' : ''}}"
+          type="digit"
+          value="{{p.downstream}}"
+          data-key="downstream"
+          bindinput="onInput"
+        />
+        <view wx:if="{{errors.downstream}}" class="err">{{errors.downstream}}</view>
+      </view>
+      <view class="field">
+        <view class="label">终止区长度（m）</view>
+        <input
+          class="input {{errors.terminal ? 'hasError' : ''}}"
+          type="digit"
+          value="{{p.terminal}}"
+          data-key="terminal"
+          bindinput="onInput"
+        />
+        <view wx:if="{{errors.terminal}}" class="err">{{errors.terminal}}</view>
+      </view>
+      <view class="field">
+        <view class="label">锥桶间距（m）</view>
+        <input
+          class="input {{errors.coneGap ? 'hasError' : ''}}"
+          type="digit"
+          value="{{p.coneGap}}"
+          data-key="coneGap"
+          bindinput="onInput"
+        />
+        <view wx:if="{{errors.coneGap}}" class="err">{{errors.coneGap}}</view>
+      </view>
+    </view>
+  </view>
+
+  <button class="generate" bindtap="handleGenerate">生成布置图</button>
+
+  <view class="note">依据《公路养护安全作业规程》等行业规范设计，正式实施前请复核当地标准。</view>
+</view>

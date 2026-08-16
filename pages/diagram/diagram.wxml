@@ -1,0 +1,89 @@
+<view class="page pageIn">
+  <!-- 计算结果概览 -->
+  <view class="card summary">
+    <view class="summaryItem" wx:for="{{summary}}" wx:key="k">
+      <text class="k">{{item.k}}</text>
+      <text class="v">{{item.v}}</text>
+    </view>
+  </view>
+
+  <!-- 图例 + 缩放工具 -->
+  <view class="canvasHead">
+    <scroll-view class="legend" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="lg" wx:for="{{legend}}" wx:key="key">
+        <view class="swatch" style="background: {{item.color}}"></view>
+        <text>{{item.name}}</text>
+      </view>
+    </scroll-view>
+    <view class="tools">
+      <view class="zoomBtns">
+        <view class="zbtn" bindtap="zoomOut">－</view>
+        <view class="zbtn reset" bindtap="zoomReset">重置</view>
+        <view class="zbtn" bindtap="zoomIn">＋</view>
+      </view>
+      <slider
+        class="zoomSlider"
+        min="65"
+        max="150"
+        step="5"
+        value="{{zoomPct}}"
+        activeColor="#ff9f0a"
+        backgroundColor="#e5e5ea"
+        block-size="20"
+        bindchange="onZoomSlider"
+      />
+      <text class="zoomLevel">{{zoomPct}}%</text>
+    </view>
+  </view>
+
+  <!-- 布置图 canvas（逻辑宽随 zoom 放大，横向滚动） -->
+  <scroll-view class="diagramScroll" scroll-x enhanced show-scrollbar="{{false}}">
+    <canvas type="2d" id="road" class="roadCanvas" style="width: {{canvasW}}px; height: {{canvasH}}px;"></canvas>
+  </scroll-view>
+
+  <!-- 导出 -->
+  <view class="actions">
+    <button class="btn secondary" bindtap="saveView">保存布置图</button>
+    <button class="btn primary" bindtap="exportA4">导出 A4 图纸</button>
+  </view>
+
+  <!-- 明细表 -->
+  <view class="card tableCard">
+    <view class="tableTitle">1. 各区域起止点</view>
+    <view class="trow thead">
+      <view class="tcell c1">序号</view>
+      <view class="tcell c2">分区名称</view>
+      <view class="tcell c3">长度</view>
+      <view class="tcell c4">起点桩号</view>
+      <view class="tcell c5">终点桩号</view>
+    </view>
+    <view class="trow" wx:for="{{tableZones}}" wx:key="key">
+      <view class="tcell c1">{{item.no}}</view>
+      <view class="tcell c2 nameCell">
+        <view class="dot" style="background: {{item.color}}"></view>
+        <text>{{item.name}}</text>
+      </view>
+      <view class="tcell c3">{{item.length}}</view>
+      <view class="tcell c4">{{item.start}}</view>
+      <view class="tcell c5">{{item.end}}</view>
+    </view>
+  </view>
+
+  <view class="card tableCard">
+    <view class="tableTitle">2. 各标志牌位置</view>
+    <view class="trow thead">
+      <view class="tcell s1">序号</view>
+      <view class="tcell s2">标志牌名称</view>
+      <view class="tcell s3">设置桩号</view>
+      <view class="tcell s4">位置说明</view>
+    </view>
+    <view class="trow" wx:for="{{tableSigns}}" wx:key="no">
+      <view class="tcell s1">{{item.no}}</view>
+      <view class="tcell s2">{{item.name}}</view>
+      <view class="tcell s3">{{item.stake}}</view>
+      <view class="tcell s4">{{item.desc}}</view>
+    </view>
+  </view>
+
+  <view class="note">提示：当前参数为方案计算值。正式实施前，请依据道路等级、设计速度、施工类型及当地现行规范复核。</view>
+</view>
