@@ -18,6 +18,8 @@ Page({
     // 旧版本存储的参数没有 doubleSide 字段，统一归一为布尔
     this.params.doubleSide = !!this.params.doubleSide;
     this.zoom = 1;
+    // 导出中标志：A4 导出复用主画布临时改分辨率，期间禁用缩放/重绘，防止竞态画出半成品
+    this.exporting = false;
     this.zones = buildZones(this.params);
     this.signRows = this.params.doubleSide
       ? signScheduleDouble(this.zones, this.params.direction)
@@ -80,6 +82,8 @@ Page({
   /* ── canvas 渲染 ── */
 
   render() {
+    // 导出期间（A4 复用主画布改分辨率）不重绘，避免覆盖导出帧
+    if (this.exporting) return;
     const svgWidth = svgWidthFor(this.zones, this.params.direction, this.params.doubleSide);
     const cssW = Math.round(svgWidth * this.zoom);
     const cssH = Math.round(VIEW_H * this.zoom);
@@ -118,20 +122,31 @@ Page({
   /* ── 缩放 ── */
 
   zoomIn() {
+    if (this.exporting) return;
     this.zoom = Math.min(1.5, this.zoom + 0.05);
     this.render();
   },
 
   zoomOut() {
+    if (this.exporting) return;
     this.zoom = Math.max(0.65, this.zoom - 0.05);
     this.render();
   },
 
   zoomReset() {
+    if (this.exporting) return;
     this.zoom = 1;
     this.render();
   },
 
+  // 拖动滑块过程中：只更新百分比回显，不重绘（避免高频全量重绘掉帧）
+  onZoomSliding(e) {
+    const pct = e.detail.value;
+    this.zoom = pct / 100;
+    this.setData({ zoomPct: pct });
+  },
+
+  // 滑块松开后才真正重绘
   onZoomSlider(e) {
     this.zoom = e.detail.value / 100;
     this.render();
@@ -140,7 +155,7 @@ Page({
   /* ── 导出 ── */
 
   saveView() {
-    if (!this.canvasNode) return;
+    if (!this.canvasNode || this.exporting) return;
     wx.canvasToTempFilePath({
       canvas: this.canvasNode,
       success: res => this.saveToAlbum(res.tempFilePath),
@@ -152,9 +167,11 @@ Page({
    * 导出完整 A4 图纸（300dpi 3508×2480）：
    * 复用页面主 canvas，临时把物理分辨率改为 A4 尺寸绘制，导出后恢复。
    * （无隐藏 canvas / 离屏 canvas 的真机兼容性问题）
+   * 导出期间置 exporting 标志，render/zoom 全部短路，避免与导出帧重绘竞态。
    */
   exportA4() {
-    if (!this.canvasNode) return;
+    if (!this.canvasNode || this.exporting) return;
+    this.exporting = true;
     wx.showLoading({ title: '生成图纸…' });
     const W = 3508;
     const H = 2480;
@@ -166,7 +183,10 @@ Page({
     const ctx = canvas.getContext('2d');
     ctx.setTransform(W / 1123, 0, 0, W / 1123, 0, 0);
 
-    const done = () => this.render();
+    const done = () => {
+      this.exporting = false;
+      this.render();
+    };
     try {
       drawA4Sheet(ctx, {
         zones: this.zones,

@@ -17,9 +17,9 @@
     </scroll-view>
     <view class="tools">
       <view class="zoomBtns">
-        <view class="zbtn" bindtap="zoomOut">－</view>
-        <view class="zbtn reset" bindtap="zoomReset">重置</view>
-        <view class="zbtn" bindtap="zoomIn">＋</view>
+        <view class="zbtn" bindtap="zoomOut" role="button" aria-label="缩小">－</view>
+        <view class="zbtn reset" bindtap="zoomReset" role="button" aria-label="重置缩放">重置</view>
+        <view class="zbtn" bindtap="zoomIn" role="button" aria-label="放大">＋</view>
       </view>
       <slider
         class="zoomSlider"
@@ -30,6 +30,8 @@
         activeColor="#ff9f0a"
         backgroundColor="#e5e5ea"
         block-size="20"
+        aria-label="缩放比例"
+        bindchanging="onZoomSliding"
         bindchange="onZoomSlider"
       />
       <text class="zoomLevel">{{zoomPct}}%</text>

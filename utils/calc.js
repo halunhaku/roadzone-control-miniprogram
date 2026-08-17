@@ -147,10 +147,16 @@ function xmlText(value) {
 /* ── 输入校验 ────────────────────────────────────────── */
 
 /** 返回字段 → 错误信息映射；无错误时为空对象 */
-function validate(p) {
+function validate(raw) {
+  // 防御性归一：调用方（如 onInput）可能传入字符串值，这里统一转 Number，
+  // 避免后续 `p.warning + 350` 这类算术退化为字符串拼接（"1600" + 350 → "1600350"）。
+  // 空串 "" → 0，会命中下方 `< min` 校验；undefined/非法字符 → NaN，由 isFinite 拦截。
+  const NUM_KEYS = ['work', 'warning', 'taper', 'buffer', 'downstream', 'terminal', 'speed', 'coneGap'];
+  const p = Object.assign({}, raw);
+  NUM_KEYS.forEach(k => { p[k] = Number(raw[k]); });
+
   const errors = {};
-  // 数值字段必须为有限数：输入框清空或输入非法字符会得到 0/NaN，
-  // NaN 会通过后续 `< min` 比较（NaN < 10 为 false），最终被 JSON 序列化成 null。
+  // 数值字段必须为有限数
   [['work', '作业区长度'], ['warning', '警告区长度'], ['taper', '上游过渡区长度'],
     ['buffer', '缓冲区长度'], ['downstream', '下游过渡区长度'], ['terminal', '终止区长度'],
     ['speed', '设计速度'], ['coneGap', '锥桶间距']].forEach(pair => {
@@ -158,20 +164,22 @@ function validate(p) {
     const label = pair[1];
     if (!Number.isFinite(p[key])) errors[key] = `${label}必须是有效数字`;
   });
+
   const start = parseStake(p.start);
   if (!start) {
     errors.start = '桩号格式错误，示例：K123+800';
   } else if (p.direction === 'up' && start < p.warning + 350) {
-    // 上行时各分区桩号递减，警告区起点 = 锚点 − 警告区 − (过渡区+缓冲区)最大 350m，
-    // 锚点不足会出现负桩号，被 stake() 静默钳制为 K0+000。
+    // 上行各分区桩号递减：警告区起点 = 锚点 − 警告区 − (过渡区+缓冲区)最大 350m。
+    // 锚点不足会令警告区起点（首个「前方施工」标志牌）跌入 0+000 之前的负桩号。
     errors.start = `上行时起点桩号需 ≥ ${stake(p.warning + 350)}（警告区 + 上游区段上限），否则将出现负桩号`;
+  } else if (p.direction === 'down' && start < p.work + p.warning + 350) {
+    // 下行一律检查：作业区起点即锚点，需预留 = 作业区 + 警告区 + 上游区段上限 350m，
+    // 否则标志牌布置区间极值会越过 0+000（双侧占路时镜像上行侧、单侧时作业区起点附近同理）。
+    errors.start = `下行时起点桩号需 ≥ ${stake(p.work + p.warning + 350)}，否则将在 0+000 之前布置标志`;
   }
+
   if (p.work < 10) errors.work = '作业区长度至少 10m';
   if (p.doubleSide && p.workSide !== 'median') errors.workSide = '双侧占路仅限中央分隔带施工';
-  if (p.doubleSide && p.direction === 'down' && start != null && start < p.work + p.warning + 350) {
-    // 双侧占路时镜像侧（上行）警告区外延：起点 − 作业区 − 警告区 − 上游区段上限
-    errors.start = `双侧占路时下行起点桩号需 ≥ ${stake(p.work + p.warning + 350)}，否则上行侧将出现负桩号`;
-  }
   if (p.warning < 50) errors.warning = '警告区长度至少 50m';
   if (p.taper < 120 || p.taper > 200) errors.taper = '上游过渡区长度应为 120-200m';
   if (p.buffer < 100 || p.buffer > 150) errors.buffer = '缓冲区长度应为 100-150m';
