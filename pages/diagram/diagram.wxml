@@ -1,5 +1,4 @@
 <view class="page pageIn">
-  <!-- 计算结果概览 -->
   <view class="card summary">
     <view class="summaryItem" wx:for="{{summary}}" wx:key="k">
       <text class="k">{{item.k}}</text>
@@ -7,7 +6,6 @@
     </view>
   </view>
 
-  <!-- 图例 + 缩放工具 -->
   <view class="canvasHead">
     <scroll-view class="legend" scroll-x enhanced show-scrollbar="{{false}}">
       <view class="lg" wx:for="{{legend}}" wx:key="key">
@@ -38,18 +36,18 @@
     </view>
   </view>
 
-  <!-- 布置图 canvas（逻辑宽随 zoom 放大，横向滚动） -->
-  <scroll-view class="diagramScroll" scroll-x enhanced show-scrollbar="{{false}}">
-    <canvas type="2d" id="road" class="roadCanvas" style="width: {{canvasW}}px; height: {{canvasH}}px;"></canvas>
-  </scroll-view>
+  <view class="laneBlock" wx:for="{{lanes}}" wx:key="key">
+    <view wx:if="{{item.title}}" class="laneHead">{{item.title}}</view>
+    <scroll-view class="diagramScroll" scroll-x enhanced show-scrollbar="{{false}}">
+      <canvas type="2d" id="{{item.canvasId}}" class="roadCanvas" style="width: {{item.cssW}}px; height: {{item.cssH}}px;"></canvas>
+    </scroll-view>
+  </view>
 
-  <!-- 导出 -->
   <view class="actions">
     <button class="btn secondary" bindtap="saveView">保存布置图</button>
     <button class="btn primary" bindtap="exportA4">导出 A4 图纸</button>
   </view>
 
-  <!-- 明细表 -->
   <view class="card tableCard">
     <view class="tableTitle">1. 各区域起止点</view>
     <view class="trow thead">
@@ -87,5 +85,5 @@
     </view>
   </view>
 
-  <view class="note">提示：当前参数为方案计算值。正式实施前，请依据道路等级、设计速度、施工类型及当地现行规范复核。</view>
+  <view class="note">{{tip}}</view>
 </view>

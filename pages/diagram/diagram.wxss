@@ -97,16 +97,26 @@
   text-align: right;
 }
 
-/* ── 布置图画布区 ── */
+/* ── 布置图画布区（纵向规程图式） ── */
+.laneBlock {
+  margin-bottom: 16rpx;
+}
+.laneHead {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 8rpx 4rpx 12rpx;
+}
 .diagramScroll {
   width: 100%;
-  background: var(--card);
+  background: #fff;
   border-radius: 16rpx;
   border: 2rpx solid var(--line);
   box-sizing: border-box;
 }
 .roadCanvas {
   display: block;
+  background: #fff;
 }
 
 /* ── 导出操作条（毛玻璃浮动材质） ── */

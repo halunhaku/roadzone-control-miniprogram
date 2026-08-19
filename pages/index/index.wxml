@@ -8,7 +8,7 @@
   </view>
 
   <view class="card">
-    <view class="cardTitle">输入参数</view>
+    <view class="cardTitle">作业区布置</view>
 
     <view class="field">
       <view class="label">作业区起点（桩号）</view>
@@ -33,6 +33,11 @@
         bindinput="onInput"
       />
       <view wx:if="{{errors.work}}" class="err">{{errors.work}}</view>
+    </view>
+
+    <view class="field">
+      <view class="label">结束桩号</view>
+      <view class="readonly">{{endStake || '填写起始桩号与长度后自动计算'}}</view>
     </view>
 
     <view class="field">
@@ -83,9 +88,9 @@
           <text>中央分隔带</text>
         </view>
       </view>
+      <view wx:if="{{errors.workSide}}" class="err">{{errors.workSide}}</view>
     </view>
 
-    <!-- 双侧占路：仅中央分隔带施工可选（上/下行同时布控，180° 对称） -->
     <view class="field" wx:if="{{p.workSide === 'median'}}">
       <view class="label">占路方式</view>
       <view class="seg" role="radiogroup" aria-label="占路方式">
@@ -109,7 +114,7 @@
     </view>
 
     <view class="field">
-      <view class="label">上游过渡区基准长度（m）</view>
+      <view class="label">过渡区基准（m）</view>
       <input
         class="input {{errors.taper ? 'hasError' : ''}}"
         type="digit"
@@ -121,7 +126,7 @@
     </view>
 
     <view class="field">
-      <view class="label">缓冲区基准长度（m）</view>
+      <view class="label">缓冲区基准（m）</view>
       <input
         class="input {{errors.buffer ? 'hasError' : ''}}"
         type="digit"
@@ -141,23 +146,13 @@
       aria-label="{{showAdvanced ? '收起高级参数' : '展开高级参数'}}"
       aria-expanded="{{showAdvanced}}"
     >
-      <text>高级参数</text>
+      <text>高级参数（下游 / 终止区 / 锥桶间距 / 设计速度）</text>
       <text class="chevron {{showAdvanced ? 'open' : ''}}" aria-hidden="true">▾</text>
     </view>
     <view wx:if="{{showAdvanced}}">
+      <view class="hint">警告区长度固定为 1,600m。</view>
       <view class="field">
-        <view class="label">警告区长度（m）</view>
-        <input
-          class="input {{errors.warning ? 'hasError' : ''}}"
-          type="digit"
-          value="{{p.warning}}"
-          data-key="warning"
-          bindinput="onInput"
-        />
-        <view wx:if="{{errors.warning}}" class="err">{{errors.warning}}</view>
-      </view>
-      <view class="field">
-        <view class="label">下游过渡区长度（m）</view>
+        <view class="label">下游过渡区（m）</view>
         <input
           class="input {{errors.downstream ? 'hasError' : ''}}"
           type="digit"
@@ -179,7 +174,7 @@
         <view wx:if="{{errors.terminal}}" class="err">{{errors.terminal}}</view>
       </view>
       <view class="field">
-        <view class="label">锥桶间距（m）</view>
+        <view class="label">锥桶间距（现场放样，m）</view>
         <input
           class="input {{errors.coneGap ? 'hasError' : ''}}"
           type="digit"
@@ -189,10 +184,33 @@
         />
         <view wx:if="{{errors.coneGap}}" class="err">{{errors.coneGap}}</view>
       </view>
+      <view class="hint">图中锥桶数量仅表示布置走向，现场数量按设定间距放样确定。</view>
+      <view class="field">
+        <view class="label">设计速度（km/h）</view>
+        <view class="seg" role="radiogroup" aria-label="设计速度">
+          <view
+            class="segItem {{p.speed == 100 ? 'active' : ''}}"
+            data-value="100"
+            bindtap="onSpeed"
+            role="radio"
+            aria-checked="{{p.speed == 100}}"
+            aria-label="100"
+          >100</view>
+          <view
+            class="segItem {{p.speed == 80 ? 'active' : ''}}"
+            data-value="80"
+            bindtap="onSpeed"
+            role="radio"
+            aria-checked="{{p.speed == 80}}"
+            aria-label="80"
+          >80</view>
+        </view>
+        <view wx:if="{{errors.speed}}" class="err">{{errors.speed}}</view>
+      </view>
     </view>
   </view>
 
   <button class="generate" bindtap="handleGenerate">生成布置图</button>
 
-  <view class="note">依据《公路养护安全作业规程》等行业规范设计，正式实施前请复核当地标准。</view>
+  <view class="note">依据《公路养护安全作业规程》JTG H30—2015 示意。正式实施前，请依据道路等级、设计速度、施工类型及当地现行规范复核。</view>
 </view>

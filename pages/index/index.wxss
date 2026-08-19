@@ -66,6 +66,24 @@
 .ph {
   color: var(--ink-3);
 }
+.readonly {
+  min-height: 84rpx;
+  line-height: 1.4;
+  padding: 24rpx;
+  box-sizing: border-box;
+  background: var(--fill);
+  border: 2rpx solid var(--line);
+  border-radius: 14rpx;
+  font-size: 28rpx;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.hint {
+  margin: 0 0 20rpx;
+  font-size: 22rpx;
+  color: var(--ink-3);
+  line-height: 1.5;
+}
 .err {
   margin-top: 10rpx;
   font-size: 22rpx;

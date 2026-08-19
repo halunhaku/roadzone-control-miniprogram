@@ -1,29 +1,45 @@
-const { defaults, buildZones, stake, mirrorZones } = require('../../utils/calc');
+const { defaults, buildZones, stake, mirrorZones, zoneExtent } = require('../../utils/calc');
 const { signSchedule, signScheduleDouble } = require('../../utils/schedule');
-const { drawDiagram, drawA4Sheet, svgWidthFor, VIEW_H } = require('../../utils/draw');
+const {
+  diagramLayout,
+  laneSpecs,
+  drawRoadDiagram,
+  drawA4DiagramPage,
+  drawA4TablePage,
+  exportModel,
+  A4,
+  A4_PX,
+} = require('../../utils/draw');
+const { loadSignImages } = require('../../utils/signs');
+
+function canvasIdOf(index) {
+  return `road-${index}`;
+}
 
 Page({
   data: {
     zoomPct: 100,
-    canvasW: 1240,
-    canvasH: 430,
+    lanes: [],
     summary: [],
     legend: [],
     tableZones: [],
     tableSigns: [],
+    tip: '',
   },
 
   onLoad() {
     this.params = wx.getStorageSync('rz:params') || Object.assign({}, defaults);
-    // 旧版本存储的参数没有 doubleSide 字段，统一归一为布尔
     this.params.doubleSide = !!this.params.doubleSide;
+    this.params.warning = 1600;
+    if (this.params.speed !== 80 && this.params.speed !== 100) this.params.speed = 100;
     this.zoom = 1;
-    // 导出中标志：A4 导出复用主画布临时改分辨率，期间禁用缩放/重绘，防止竞态画出半成品
     this.exporting = false;
+    this.signImages = null;
+    this.signImagesPromise = null;
     this.zones = buildZones(this.params);
     this.signRows = this.params.doubleSide
-      ? signScheduleDouble(this.zones, this.params.direction)
-      : signSchedule(this.zones, this.params.direction);
+      ? signScheduleDouble(this.zones, this.params.direction, this.params.speed)
+      : signSchedule(this.zones, this.params.direction, this.params.speed);
 
     const { zones, params } = this;
     const direction = params.direction;
@@ -33,8 +49,8 @@ Page({
     const primaryDir = dirText;
     const mirrorDir = primaryDir === '上行' ? '下行' : '上行';
     const mirrored = params.doubleSide ? mirrorZones(zones, direction) : null;
+    const extent = zoneExtent(zones, mirrored || undefined);
 
-    // 双侧占路：分区表两车道合并（方向前缀），序号连续
     const mergedZones = params.doubleSide
       ? [
           ...zones.map(z => ({ z, dir: primaryDir })),
@@ -42,23 +58,15 @@ Page({
         ]
       : zones.map(z => ({ z, dir: '' }));
 
-    // 影响路段取全部车道（含镜像侧）的桩号极值
-    const allZones = params.doubleSide ? zones.concat(mirrored) : zones;
-    let minStake = Infinity;
-    let maxStake = -Infinity;
-    allZones.forEach(z => {
-      minStake = Math.min(minStake, z.start, z.end);
-      maxStake = Math.max(maxStake, z.start, z.end);
-    });
-
     this.setData({
       summary: [
         { k: '作业区范围', v: `${stake(zones[3].start)} ~ ${stake(zones[3].end)}` },
-        { k: '过渡区/缓冲区实际长度', v: `${zones[1].length}m / ${zones[2].length}m` },
-        { k: '布置总长度', v: `${total}m` },
-        { k: '影响路段', v: `${stake(minStake)} ~ ${stake(maxStake)}` },
+        { k: '过渡区/缓冲区', v: `${zones[1].length}m / ${zones[2].length}m` },
+        { k: params.doubleSide ? '单侧长度' : '布置总长度', v: `${total}m` },
+        { k: '影响路段', v: `${stake(extent.min)} ~ ${stake(extent.max)}` },
         { k: '方向', v: params.doubleSide ? '上/下行' : dirText },
         { k: '施工位置', v: params.doubleSide ? `${sideText}（双侧占路）` : sideText },
+        { k: '设计速度', v: `${params.speed} km/h` },
       ],
       legend: zones.map(z => ({ key: z.key, color: z.color, name: z.name })),
       tableZones: mergedZones.map((row, i) => ({
@@ -72,54 +80,98 @@ Page({
         end: stake(row.z.end),
       })),
       tableSigns: this.signRows.map(r => ({ no: r[0], name: r[1], stake: r[2], desc: r[3] })),
+      tip: params.doubleSide
+        ? '导出为 A4 纵向图纸：上行图、下行图、一览表共三页。每张布置图角落带双侧总平面缩略图。图中锥桶数量仅表示布置走向。'
+        : '导出为 A4 纵向图纸：布置图 + 一览表。图面按《公路养护安全作业规程》JTG H30—2015 示意。图中锥桶数量仅表示布置走向。',
     });
   },
 
   onReady() {
+    this.fitWidth = this.measureFitWidth();
     this.render();
   },
 
-  /* ── canvas 渲染 ── */
+  measureFitWidth() {
+    const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const pad = (24 * 2 * info.windowWidth) / 750;
+    return Math.max(240, info.windowWidth - pad - 4);
+  },
 
-  render() {
-    // 导出期间（A4 复用主画布改分辨率）不重绘，避免覆盖导出帧
-    if (this.exporting) return;
-    const svgWidth = svgWidthFor(this.zones, this.params.direction, this.params.doubleSide);
-    const cssW = Math.round(svgWidth * this.zoom);
-    const cssH = Math.round(VIEW_H * this.zoom);
-    this.setData({ canvasW: cssW, canvasH: cssH, zoomPct: Math.round(this.zoom * 100) }, () => {
-      wx.nextTick(() => this.draw());
+  specs() {
+    return laneSpecs({
+      zones: this.zones,
+      direction: this.params.direction,
+      workSide: this.params.workSide,
+      doubleSide: this.params.doubleSide,
+      coneGap: this.params.coneGap,
+      speed: this.params.speed,
+      zoom: 1,
     });
   },
 
-  draw() {
+  render() {
+    if (this.exporting) return;
+    const specs = this.specs();
+    const lanes = specs.map((spec, index) => {
+      const layout = diagramLayout({ zones: spec.zones, zoom: 1, overview: Boolean(spec.overview) });
+      const scale = (this.fitWidth / layout.viewW) * this.zoom;
+      return {
+        key: spec.key,
+        title: spec.title,
+        canvasId: canvasIdOf(index),
+        cssW: Math.round(layout.viewW * scale),
+        cssH: Math.round(layout.viewH * scale),
+      };
+    });
+    this.setData({ lanes, zoomPct: Math.round(this.zoom * 100) }, () => {
+      wx.nextTick(() => {
+        this.drawAll();
+        // wx:for 生成的 type=2d canvas 偶发下一帧才挂 node
+        setTimeout(() => { if (!this.exporting) this.drawAll(); }, 60);
+      });
+    });
+  },
+
+  drawAll() {
+    if (this.exporting) return;
+    const specs = this.specs();
+    specs.forEach((spec, index) => this.drawLane(spec, canvasIdOf(index), index === 0));
+  },
+
+  ensureSignImages(canvas) {
+    if (this.signImages) return Promise.resolve(this.signImages);
+    if (!this.signImagesPromise) {
+      this.signImagesPromise = loadSignImages(canvas).then(images => {
+        this.signImages = images;
+        return images;
+      });
+    }
+    return this.signImagesPromise;
+  },
+
+  drawLane(spec, canvasId, keepNode) {
     wx.createSelectorQuery()
       .in(this)
-      .select('#road')
+      .select(`#${canvasId}`)
       .fields({ node: true, size: true })
       .exec(res => {
+        if (this.exporting) return;
         if (!res || !res[0] || !res[0].node) return;
         const info = res[0];
         const canvas = info.node;
-        // 物理像素 = CSS 尺寸 × dpr；绘制按逻辑坐标（svgWidth × VIEW_H）
-        const dpr = (wx.getWindowInfo ? wx.getWindowInfo().pixelRatio : 2) || 2;
-        canvas.width = Math.round(info.width * dpr);
-        canvas.height = Math.round(info.height * dpr);
-        this.canvasNode = canvas;
-        const ctx = canvas.getContext('2d');
-        const svgWidth = svgWidthFor(this.zones, this.params.direction, this.params.doubleSide);
-        ctx.setTransform(canvas.width / svgWidth, 0, 0, canvas.width / svgWidth, 0, 0);
-        drawDiagram(ctx, {
-          zones: this.zones,
-          direction: this.params.direction,
-          workSide: this.params.workSide,
-          coneGap: this.params.coneGap,
-          doubleSide: this.params.doubleSide,
+        this.ensureSignImages(canvas).then(images => {
+          if (this.exporting) return;
+          const dpr = (wx.getWindowInfo ? wx.getWindowInfo().pixelRatio : 2) || 2;
+          canvas.width = Math.round(info.width * dpr);
+          canvas.height = Math.round(info.height * dpr);
+          if (keepNode) this.canvasNode = canvas;
+          const ctx = canvas.getContext('2d');
+          const layout = diagramLayout({ zones: spec.zones, zoom: 1, overview: Boolean(spec.overview) });
+          ctx.setTransform(canvas.width / layout.viewW, 0, 0, canvas.width / layout.viewW, 0, 0);
+          drawRoadDiagram(ctx, Object.assign({}, spec, { signImages: images }));
         });
       });
   },
-
-  /* ── 缩放 ── */
 
   zoomIn() {
     if (this.exporting) return;
@@ -139,92 +191,156 @@ Page({
     this.render();
   },
 
-  // 拖动滑块过程中：只更新百分比回显，不重绘（避免高频全量重绘掉帧）
   onZoomSliding(e) {
-    const pct = e.detail.value;
-    this.zoom = pct / 100;
-    this.setData({ zoomPct: pct });
+    this.zoom = e.detail.value / 100;
+    this.setData({ zoomPct: e.detail.value });
   },
 
-  // 滑块松开后才真正重绘
   onZoomSlider(e) {
     this.zoom = e.detail.value / 100;
     this.render();
   },
 
-  /* ── 导出 ── */
-
   saveView() {
-    if (!this.canvasNode || this.exporting) return;
-    wx.canvasToTempFilePath({
-      canvas: this.canvasNode,
-      success: res => this.saveToAlbum(res.tempFilePath),
-      fail: () => wx.showToast({ title: '生成图片失败', icon: 'none' }),
-    });
+    if (this.exporting) return;
+    const lanes = this.data.lanes || [];
+    if (lanes.length === 0) return;
+    const files = [];
+    const grab = index => {
+      if (index >= lanes.length) {
+        this.saveFiles(files);
+        return;
+      }
+      wx.createSelectorQuery()
+        .in(this)
+        .select(`#${lanes[index].canvasId}`)
+        .fields({ node: true, size: true })
+        .exec(res => {
+          if (!res || !res[0] || !res[0].node) {
+            wx.showToast({ title: '生成图片失败', icon: 'none' });
+            return;
+          }
+          wx.canvasToTempFilePath({
+            canvas: res[0].node,
+            success: file => {
+              files.push(file.tempFilePath);
+              grab(index + 1);
+            },
+            fail: () => wx.showToast({ title: '生成图片失败', icon: 'none' }),
+          });
+        });
+    };
+    grab(0);
   },
 
-  /**
-   * 导出完整 A4 图纸（300dpi 3508×2480）：
-   * 复用页面主 canvas，临时把物理分辨率改为 A4 尺寸绘制，导出后恢复。
-   * （无隐藏 canvas / 离屏 canvas 的真机兼容性问题）
-   * 导出期间置 exporting 标志，render/zoom 全部短路，避免与导出帧重绘竞态。
-   */
   exportA4() {
-    if (!this.canvasNode || this.exporting) return;
-    this.exporting = true;
-    wx.showLoading({ title: '生成图纸…' });
-    const W = 3508;
-    const H = 2480;
-    const canvas = this.canvasNode;
-    const total = this.zones.reduce((s, z) => s + z.length, 0);
-
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext('2d');
-    ctx.setTransform(W / 1123, 0, 0, W / 1123, 0, 0);
-
-    const done = () => {
-      this.exporting = false;
-      this.render();
-    };
-    try {
-      drawA4Sheet(ctx, {
-        zones: this.zones,
-        direction: this.params.direction,
-        workSide: this.params.workSide,
-        coneGap: this.params.coneGap,
-        start: this.params.start,
-        total,
-        signRows: this.signRows,
-        doubleSide: this.params.doubleSide,
+    if (this.exporting) return;
+    const firstId = (this.data.lanes[0] && this.data.lanes[0].canvasId) || 'road-0';
+    wx.createSelectorQuery()
+      .in(this)
+      .select(`#${firstId}`)
+      .fields({ node: true, size: true })
+      .exec(res => {
+        if (!res || !res[0] || !res[0].node) {
+          wx.showToast({ title: '画布未就绪', icon: 'none' });
+          return;
+        }
+        this.canvasNode = res[0].node;
+        this.ensureSignImages(res[0].node).then(() => this.startExport(res[0].node));
       });
+  },
+
+  startExport(canvas) {
+    this.exporting = true;
+    const specs = this.specs();
+    const total = this.zones.reduce((s, z) => s + z.length, 0);
+    const model = exportModel({
+      params: this.params,
+      zones: this.zones,
+      signRows: this.signRows,
+      total,
+      doubleSide: this.params.doubleSide,
+    });
+    const pages = [
+      ...specs.map((spec, index) => ({ kind: 'diagram', spec, pageNo: index + 1 })),
+      { kind: 'table', pageNo: specs.length + 1 },
+    ];
+    const pageCount = pages.length;
+    wx.showLoading({ title: `生成图纸 1/${pageCount}` });
+    const files = [];
+    const drawPage = index => {
+      if (index >= pages.length) {
+        wx.hideLoading();
+        this.exporting = false;
+        this.render();
+        this.saveFiles(files);
+        return;
+      }
+      const page = pages[index];
+      wx.showLoading({ title: `生成图纸 ${index + 1}/${pageCount}` });
+      canvas.width = A4_PX.w;
+      canvas.height = A4_PX.h;
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(A4_PX.w / A4.w, 0, 0, A4_PX.w / A4.w, 0, 0);
+      if (page.kind === 'diagram') {
+        drawA4DiagramPage(ctx, {
+          spec: Object.assign({}, page.spec, { signImages: this.signImages }),
+          model,
+          pageNo: page.pageNo,
+          pageCount,
+        });
+      } else {
+        drawA4TablePage(ctx, { model, pageNo: page.pageNo, pageCount });
+      }
       wx.canvasToTempFilePath({
         canvas,
         success: res => {
-          wx.hideLoading();
-          done();
-          this.saveToAlbum(res.tempFilePath);
+          files.push(res.tempFilePath);
+          drawPage(index + 1);
         },
         fail: () => {
           wx.hideLoading();
-          done();
+          this.exporting = false;
+          this.render();
           wx.showToast({ title: '生成图片失败', icon: 'none' });
         },
       });
-    } catch {
+    };
+
+    try {
+      drawPage(0);
+    } catch (err) {
       wx.hideLoading();
-      done();
+      this.exporting = false;
+      this.render();
       wx.showToast({ title: '生成失败', icon: 'none' });
     }
   },
 
-  saveToAlbum(filePath) {
+  saveFiles(files) {
+    const next = index => {
+      if (index >= files.length) {
+        wx.vibrateShort({ type: 'light', fail: () => {} });
+        wx.showToast({
+          title: files.length > 1 ? `已保存 ${files.length} 页到相册` : '已保存到相册',
+          icon: 'success',
+        });
+        return;
+      }
+      this.saveToAlbum(files[index], () => next(index + 1), index === 0);
+    };
+    next(0);
+  },
+
+  saveToAlbum(filePath, onDone, silentFail) {
     wx.saveImageToPhotosAlbum({
       filePath,
       success: () => {
-        // 保存完成：触感与视觉反馈同帧（harmony）
-        wx.vibrateShort({ type: 'light', fail: () => {} });
-        wx.showToast({ title: '已保存到相册', icon: 'success' });
+        if (onDone) onDone();
+        else {
+          wx.vibrateShort({ type: 'light', fail: () => {} });
+          wx.showToast({ title: '已保存到相册', icon: 'success' });
+        }
       },
       fail: err => {
         const msg = (err && err.errMsg) || '';
@@ -237,9 +353,10 @@ Page({
               if (r.confirm) wx.openSetting();
             },
           });
-        } else {
-          wx.showToast({ title: '保存失败', icon: 'none' });
+          return;
         }
+        if (!silentFail && !onDone) wx.showToast({ title: '保存失败', icon: 'none' });
+        if (onDone) onDone();
       },
     });
   },

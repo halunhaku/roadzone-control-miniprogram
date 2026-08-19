@@ -1,0 +1,33 @@
+<svg preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" viewBox="66 8 488 399" width="256" height="256" role="img" aria-label="路栏"><defs>
+
+
+<pattern id="stripeTop" width="78" height="78" patternUnits="userSpaceOnUse" patternTransform="skewX(-16)">
+  <rect width="78" height="78" fill="#F2994A"/>
+  <rect x="0" y="0" width="26" height="78" fill="#202020"/>
+</pattern>
+
+<pattern id="stripeBottom" width="62" height="62" patternUnits="userSpaceOnUse" patternTransform="skewX(-16)">
+  <rect width="62" height="62" fill="#F2994A"/>
+  <rect x="0" y="0" width="21" height="62" fill="#202020"/>
+</pattern>
+
+
+</defs>
+
+<g stroke="#202020" stroke-linecap="round"> <line x1="130" y1="25" x2="130" y2="8" stroke-width="4"/> <line x1="110" y1="30" x2="99" y2="16" stroke-width="4"/> <line x1="150" y1="30" x2="161" y2="16" stroke-width="4"/> <line x1="94" y1="43" x2="79" y2="34" stroke-width="4"/> <line x1="166" y1="43" x2="181" y2="34" stroke-width="4"/> </g> <circle cx="130" cy="74" r="28" fill="#FFF21A" stroke="#202020" stroke-width="5"/>
+
+<g stroke="#202020" stroke-linecap="round"> <line x1="310" y1="25" x2="310" y2="8" stroke-width="4"/> <line x1="290" y1="30" x2="279" y2="16" stroke-width="4"/> <line x1="330" y1="30" x2="341" y2="16" stroke-width="4"/> <line x1="274" y1="43" x2="259" y2="34" stroke-width="4"/> <line x1="346" y1="43" x2="361" y2="34" stroke-width="4"/> </g> <circle cx="310" cy="74" r="28" fill="#FFF21A" stroke="#202020" stroke-width="5"/>
+
+<g stroke="#202020" stroke-linecap="round"> <line x1="490" y1="25" x2="490" y2="8" stroke-width="4"/> <line x1="470" y1="30" x2="459" y2="16" stroke-width="4"/> <line x1="510" y1="30" x2="521" y2="16" stroke-width="4"/> <line x1="454" y1="43" x2="439" y2="34" stroke-width="4"/> <line x1="526" y1="43" x2="541" y2="34" stroke-width="4"/> </g> <circle cx="490" cy="74" r="28" fill="#FFF21A" stroke="#202020" stroke-width="5"/>
+
+<rect x="123" y="100" width="14" height="20" fill="#202020"/> <rect x="303" y="100" width="14" height="20" fill="#202020"/> <rect x="483" y="100" width="14" height="20" fill="#202020"/>
+
+<rect x="66" y="115" width="8" height="292" fill="#202020"/> <rect x="546" y="115" width="8" height="292" fill="#202020"/>
+
+<rect x="70" y="115" width="480" height="98" fill="url(#stripeTop)" stroke="#202020" stroke-width="4"/>
+
+<rect x="70" y="213" width="480" height="78" fill="#FFFFFF" stroke="#202020" stroke-width="3"/>
+
+<rect x="70" y="291" width="480" height="58" fill="url(#stripeBottom)" stroke="#202020" stroke-width="4"/>
+
+</svg>

@@ -1,4 +1,4 @@
-/* ── 计算逻辑：从 Web 版 src/utils.ts 原样移植，零 DOM 依赖 ── */
+/* ── 计算逻辑：与 Web 端 src/zone/utils.ts 对齐 ── */
 
 /* ── 常量 ────────────────────────────────────────────── */
 
@@ -9,7 +9,7 @@ const zoneMeta = [
   { key: 'buffer', name: '缓冲区', color: '#5AC8FA', description: '入口设置路栏及作业区长度标志，保留安全净空' },
   { key: 'work', name: '作业区', color: '#FF3B30', description: '沿封闭车道连续摆放锥桶，设备与人员在内作业' },
   { key: 'downstream', name: '下游过渡区', color: '#AF52DE', description: '锥桶斜向渐变撤除，引导车辆恢复行驶' },
-  { key: 'terminal', name: '终止区', color: '#30D158', description: '终点设置解除限速60及解除禁止超车标志' },
+  { key: 'terminal', name: '终止区', color: '#30D158', description: '终点设置解除最终限速及解除禁止超车标志' },
 ];
 
 /** 默认参数 */
@@ -21,6 +21,11 @@ const defaults = {
 
 /** 警告区标志设置偏移（距警告区起点，米）；超出警告区实际长度的标志不设置 */
 const warningSignOffsets = [0, 400, 600, 800, 1000, 1200];
+
+/** 本项目的高速公路逐级限速口径。 */
+function speedLimits(speed) {
+  return Number(speed) === 80 ? { first: 60, final: 40 } : { first: 80, final: 60 };
+}
 
 /* ── 桩号工具 ────────────────────────────────────────── */
 
@@ -41,64 +46,18 @@ function stake(m) {
   return `K${Math.floor(n / 1000)}+${String(n % 1000).padStart(3, '0')}`;
 }
 
-/* ── 上游过渡区与缓冲区联合对齐 ──────────────────────── */
-
-/**
- * 在 120–200m / 100–150m 范围内联合调整，使外端对齐整百米桩号，
- * 并优先采用整十米长度。
- */
-function alignedUpstreamZones(anchor, baseTaper, baseBuffer, direction) {
-  let best = null;
-
-  for (let taper = 120; taper <= 200; taper += 1) {
-    for (let buffer = 100; buffer <= 150; buffer += 1) {
-      const total = taper + buffer;
-      const outerStake = direction === 'up' ? anchor - total : anchor + total;
-      // 外端不能为负（负桩号无意义），且需对齐整百米
-      if (outerStake < 0 || outerStake % 100 !== 0) continue;
-
-      const taperRemainder = taper % 10;
-      const bufferRemainder = buffer % 10;
-      const candidate = {
-        taper,
-        buffer,
-        totalDelta: Math.abs(total - (baseTaper + baseBuffer)),
-        tenMeterPenalty:
-          Math.min(taperRemainder, 10 - taperRemainder) +
-          Math.min(bufferRemainder, 10 - bufferRemainder),
-        individualDelta: (taper - baseTaper) ** 2 + (buffer - baseBuffer) ** 2,
-      };
-      if (
-        !best ||
-        candidate.totalDelta < best.totalDelta ||
-        (candidate.totalDelta === best.totalDelta && candidate.tenMeterPenalty < best.tenMeterPenalty) ||
-        (candidate.totalDelta === best.totalDelta &&
-          candidate.tenMeterPenalty === best.tenMeterPenalty &&
-          candidate.individualDelta < best.individualDelta)
-      ) {
-        best = candidate;
-      }
-    }
-  }
-
-  // 两个区间的合计范围为 220–350m，跨度超过 100m，锚点足够时必有整百米解。
-  // 锚点过小（上行起点不足）时回退基准值，由 validate 负责拦截。
-  if (!best) return { taper: baseTaper, buffer: baseBuffer };
-  return { taper: best.taper, buffer: best.buffer };
-}
-
 /* ── 分区计算 ────────────────────────────────────────── */
 
 /**
  * 按方向生成 6 个分区的桩号区间。
+ * 严格使用用户输入长度，不做整百米对齐。
  * @param {Object} p Params
  * @returns {Array<{key:string,name:string,color:string,description:string,length:number,start:number,end:number}>}
  */
 function buildZones(p) {
   const parsed = parseStake(p.start);
-  const anchor = parsed !== null && parsed !== undefined ? parsed : 123800;
-  const actual = alignedUpstreamZones(anchor, Number(p.taper), Number(p.buffer), p.direction);
-  const lens = [p.warning, actual.taper, actual.buffer, p.work, p.downstream, p.terminal].map(Number);
+  const anchor = parsed != null ? parsed : 123800;
+  const lens = [p.warning, p.taper, p.buffer, p.work, p.downstream, p.terminal].map(Number);
   const before = lens[0] + lens[1] + lens[2];
   let cursor = p.direction === 'up' ? anchor - before : anchor + before;
   const sign = p.direction === 'up' ? 1 : -1;
@@ -115,8 +74,6 @@ function buildZones(p) {
 /**
  * 生成对向车道的镜像分区：与主方向长度完全一致（上下游一致），
  * 以作业区终点为锚点反方向延伸，使两侧作业区桩号范围重合。
- * 主方向为上行时作业区 [start, start+work]，镜像锚点取作业区终点；
- * 主方向为下行时作业区 [start-work, start]，同样取终点（即低桩号端）。
  * 不对镜像侧做整百米对齐，保证两侧参数一致（180° 对称）。
  * @param {Array} zones buildZones 输出
  * @param {'up'|'down'} direction
@@ -137,6 +94,17 @@ function mirrorZones(zones, direction) {
   });
 }
 
+/** 计算单侧或双侧布置在桩号轴上的整体影响范围。 */
+function zoneExtent(zones, mirrored) {
+  const stakes = zones.concat(mirrored || []).reduce((list, zone) => {
+    list.push(zone.start, zone.end);
+    return list;
+  }, []);
+  const min = Math.min.apply(null, stakes);
+  const max = Math.max.apply(null, stakes);
+  return { min, max, span: max - min };
+}
+
 /* ── XML 转义 ────────────────────────────────────────── */
 
 function xmlText(value) {
@@ -148,15 +116,12 @@ function xmlText(value) {
 
 /** 返回字段 → 错误信息映射；无错误时为空对象 */
 function validate(raw) {
-  // 防御性归一：调用方（如 onInput）可能传入字符串值，这里统一转 Number，
-  // 避免后续 `p.warning + 350` 这类算术退化为字符串拼接（"1600" + 350 → "1600350"）。
-  // 空串 "" → 0，会命中下方 `< min` 校验；undefined/非法字符 → NaN，由 isFinite 拦截。
+  // 防御性归一：小程序 input 输出字符串，统一转 Number。
   const NUM_KEYS = ['work', 'warning', 'taper', 'buffer', 'downstream', 'terminal', 'speed', 'coneGap'];
   const p = Object.assign({}, raw);
   NUM_KEYS.forEach(k => { p[k] = Number(raw[k]); });
 
   const errors = {};
-  // 数值字段必须为有限数
   [['work', '作业区长度'], ['warning', '警告区长度'], ['taper', '上游过渡区长度'],
     ['buffer', '缓冲区长度'], ['downstream', '下游过渡区长度'], ['terminal', '终止区长度'],
     ['speed', '设计速度'], ['coneGap', '锥桶间距']].forEach(pair => {
@@ -166,27 +131,25 @@ function validate(raw) {
   });
 
   const start = parseStake(p.start);
-  if (!start) {
+  if (start == null) {
     errors.start = '桩号格式错误，示例：K123+800';
-  } else if (p.direction === 'up' && start < p.warning + 350) {
-    // 上行各分区桩号递减：警告区起点 = 锚点 − 警告区 − (过渡区+缓冲区)最大 350m。
-    // 锚点不足会令警告区起点（首个「前方施工」标志牌）跌入 0+000 之前的负桩号。
-    errors.start = `上行时起点桩号需 ≥ ${stake(p.warning + 350)}（警告区 + 上游区段上限），否则将出现负桩号`;
-  } else if (p.direction === 'down' && start < p.work + p.warning + 350) {
-    // 下行一律检查：作业区起点即锚点，需预留 = 作业区 + 警告区 + 上游区段上限 350m，
-    // 否则标志牌布置区间极值会越过 0+000（双侧占路时镜像上行侧、单侧时作业区起点附近同理）。
-    errors.start = `下行时起点桩号需 ≥ ${stake(p.work + p.warning + 350)}，否则将在 0+000 之前布置标志`;
+  } else if (p.direction === 'up' && start < p.warning + p.taper + p.buffer) {
+    errors.start = `上行时起点桩号需 ≥ ${stake(p.warning + p.taper + p.buffer)}（警告区 + 过渡区 + 缓冲区），否则将出现负桩号`;
+  } else if (p.direction === 'down' && start < p.work + p.downstream + p.terminal) {
+    errors.start = `下行时起点桩号需 ≥ ${stake(p.work + p.downstream + p.terminal)}（作业区 + 下游过渡区 + 终止区），否则将出现负桩号`;
   }
-
-  if (p.work < 10) errors.work = '作业区长度至少 10m';
+  if (p.work < 10 || p.work > 4000) errors.work = '作业区长度应为 10-4000m';
   if (p.doubleSide && p.workSide !== 'median') errors.workSide = '双侧占路仅限中央分隔带施工';
-  if (p.warning < 50) errors.warning = '警告区长度至少 50m';
+  if (p.doubleSide && p.direction === 'down' && start != null && start < p.work + p.warning + p.taper + p.buffer) {
+    errors.start = `双侧占路时下行起点桩号需 ≥ ${stake(p.work + p.warning + p.taper + p.buffer)}，否则上行侧将出现负桩号`;
+  }
+  if (p.warning !== 1600) errors.warning = '警告区长度固定为 1600m';
   if (p.taper < 120 || p.taper > 200) errors.taper = '上游过渡区长度应为 120-200m';
   if (p.buffer < 100 || p.buffer > 150) errors.buffer = '缓冲区长度应为 100-150m';
-  if (p.downstream < 10) errors.downstream = '下游过渡区长度至少 10m';
-  if (p.terminal < 10) errors.terminal = '终止区长度至少 10m';
-  if (p.coneGap < 1) errors.coneGap = '锥桶间距至少 1m';
-  if (p.speed < 20 || p.speed > 120) errors.speed = '设计速度应在 20-120 km/h';
+  if (p.downstream < 30) errors.downstream = '下游过渡区长度至少 30m';
+  if (p.terminal < 30) errors.terminal = '终止区长度至少 30m';
+  if (p.coneGap < 1 || p.coneGap > 4) errors.coneGap = '锥桶间距应为 1-4m';
+  if (p.speed !== 80 && p.speed !== 100) errors.speed = '设计速度仅支持 80 或 100 km/h';
   return errors;
 }
 
@@ -194,11 +157,12 @@ module.exports = {
   zoneMeta,
   defaults,
   warningSignOffsets,
+  speedLimits,
   parseStake,
   stake,
-  alignedUpstreamZones,
   buildZones,
   mirrorZones,
+  zoneExtent,
   xmlText,
   validate,
 };

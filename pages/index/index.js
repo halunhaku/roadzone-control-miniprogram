@@ -1,4 +1,4 @@
-const { defaults, validate } = require('../../utils/calc');
+const { defaults, validate, parseStake, stake } = require('../../utils/calc');
 
 /** 数字字段转 Number（input 输出字符串） */
 function normalize(p) {
@@ -6,14 +6,24 @@ function normalize(p) {
   ['work', 'warning', 'taper', 'buffer', 'downstream', 'terminal', 'speed', 'coneGap'].forEach(k => {
     out[k] = Number(out[k]);
   });
+  out.warning = 1600;
+  out.doubleSide = !!out.doubleSide;
   return out;
+}
+
+function endStakeOf(p) {
+  const start = parseStake(p.start);
+  const work = Number(p.work);
+  if (start == null || !Number.isFinite(work) || work < 10) return '';
+  return stake(start + (p.direction === 'down' ? -work : work));
 }
 
 Page({
   data: {
     p: Object.assign({}, defaults),
     errors: {},
-    showAdvanced: true,
+    showAdvanced: false,
+    endStake: endStakeOf(defaults),
   },
 
   onInput(e) {
@@ -21,20 +31,18 @@ Page({
     const value = e.detail.value;
     const p = Object.assign({}, this.data.p);
     p[key] = value;
-    // 输入时清除该字段错误，实时反馈
     const errors = Object.assign({}, this.data.errors);
     delete errors[key];
-    this.setData({ p, errors });
+    this.setData({ p, errors, endStake: endStakeOf(p) });
   },
 
   onDirection(e) {
     const p = Object.assign({}, this.data.p, { direction: e.currentTarget.dataset.value });
-    this.setData({ p });
+    this.setData({ p, endStake: endStakeOf(p) });
   },
 
   onWorkSide(e) {
     const value = e.currentTarget.dataset.value;
-    // 双侧占路仅中央分隔带施工可选：切回路侧时复位
     const p = Object.assign({}, this.data.p, {
       workSide: value,
       doubleSide: value === 'median' ? this.data.p.doubleSide : false,
@@ -45,6 +53,13 @@ Page({
   onDoubleSide(e) {
     const p = Object.assign({}, this.data.p, { doubleSide: e.currentTarget.dataset.value === 'true' });
     this.setData({ p });
+  },
+
+  onSpeed(e) {
+    const p = Object.assign({}, this.data.p, { speed: Number(e.currentTarget.dataset.value) });
+    const errors = Object.assign({}, this.data.errors);
+    delete errors.speed;
+    this.setData({ p, errors });
   },
 
   toggleAdvanced() {
@@ -59,7 +74,6 @@ Page({
       wx.showToast({ title: '请修正标红的参数', icon: 'none' });
       return;
     }
-    // 触感与视觉同帧：校验通过立即轻震
     wx.vibrateShort({ type: 'light', fail: () => {} });
     wx.setStorageSync('rz:params', p);
     wx.navigateTo({ url: '/pages/diagram/diagram' });

@@ -1,0 +1,15 @@
+<svg preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 548" width="256" height="256" role="img" aria-label="关闭智驾">
+  <rect x="27" y="28" width="298" height="492" rx="19" ry="19" fill="#FFFFFF" stroke="#E98A3E" stroke-width="7"/>
+  <rect x="38" y="41" width="276" height="466" rx="11" ry="11" fill="none" stroke="#F1A066" stroke-width="2.8"/>
+  <rect x="50" y="53" width="252" height="442" rx="8" ry="8" fill="#F2994A"/>
+  <g fill="#202020" font-family="'PingFang SC','Microsoft YaHei','Noto Sans CJK SC','Source Han Sans SC',sans-serif" font-size="64" font-weight="700" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle">
+    <text x="125" y="145">前</text>
+    <text x="125" y="231">方</text>
+    <text x="125" y="317">施</text>
+    <text x="125" y="403">工</text>
+    <text x="225" y="145">关</text>
+    <text x="225" y="231">闭</text>
+    <text x="225" y="317">智</text>
+    <text x="225" y="403">驾</text>
+  </g>
+</svg>
