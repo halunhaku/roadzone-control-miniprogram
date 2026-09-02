@@ -44,8 +44,8 @@
   </view>
 
   <view class="actions">
-    <button class="btn secondary" bindtap="saveView">保存布置图</button>
-    <button class="btn primary" bindtap="exportA4">导出 A4 图纸</button>
+    <button class="btn secondary" bindtap="saveView">导出到相册</button>
+    <button class="btn primary" bindtap="exportA4">导出 PDF</button>
   </view>
 
   <view class="card tableCard">

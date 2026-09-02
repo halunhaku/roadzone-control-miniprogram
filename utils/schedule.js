@@ -5,14 +5,20 @@ const { stake, warningSignOffsets, mirrorZones, speedLimits } = require('./calc'
 function warningNames(speed) {
   const limits = speedLimits(speed);
   return {
-    0: '前方施工 1600m', 400: '关闭智驾', 600: `限速 ${limits.first}`, 800: '前方施工 800m',
-    1000: `限速 ${limits.final}`, 1200: '禁止超车 / 车道减少',
+    0: '前方施工 1600m',
+    400: '关闭智驾',
+    800: `限速 ${limits.first}`,
+    1000: `限速 ${limits.final}`,
+    1200: '禁止超车 / 车道减少',
   };
 }
 
 const WARN_DESCS = {
-  0: '0m / 警告区起点', 400: '距警告区起点 400m', 600: '距警告区起点 600m',
-  800: '距警告区起点 800m', 1000: '距警告区起点 1000m', 1200: '距警告区起点 1200m',
+  0: '0m / 警告区起点',
+  400: '距警告区起点 400m',
+  800: '距警告区起点 800m',
+  1000: '距警告区起点 1000m',
+  1200: '距警告区起点 1200m',
 };
 
 /**

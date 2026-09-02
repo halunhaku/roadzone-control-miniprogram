@@ -8,6 +8,7 @@
 - **布置图页**(pages/diagram)：纵向规程图式（JTG H30，行车方向自下而上），双侧占路拆成上行/下行两张并带总平面缩略图
 - **计算逻辑**(utils/calc.js)：与 Web 端 `src/zone/utils.ts` 同一套分区计算（用户输入长度，不做整百米对齐）
 - **绘制引擎**(utils/draw.js)：纵向布置图 + A4 纵向分页导出（单侧：布置图 + 一览表；双侧：上行图 + 下行图 + 一览表）
+- **导出**：布置图页有两个导出按钮——「导出到相册」把布置图与一览表存成图片存进手机相册；「导出 PDF」用内置轻量 PDF 生成器（utils/pdf.js，无第三方依赖）把同样内容合成为一个 PDF 文件并打开预览
 - **官方标志牌**(assets/signs)：与 Web 端同一套 JTG 图例 SVG，栅格为 PNG 后画到 canvas（微信不支持直接渲染 SVG）
 - **标志牌时刻表**(utils/schedule.js)：按设计速度切换逐级限速（100→80/60，80→60/40）
 
@@ -16,7 +17,7 @@
 ```
 pages/index/       参数输入页
 pages/diagram/     布置图页
-utils/             calc 计算 / draw 绘制 / schedule 时刻表
+utils/             calc 计算 / draw 绘制 / schedule 时刻表 / pdf PDF 生成
 tests/             计算、时刻表与导出模型的 node:test
 app.js / app.json  小程序入口与配置
 project.config.json  开发者工具配置（appid: wx3fb83afad5922409）

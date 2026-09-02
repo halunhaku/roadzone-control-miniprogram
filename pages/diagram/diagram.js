@@ -9,7 +9,9 @@ const {
   exportModel,
   A4,
   A4_PX,
+  PDF_PX,
 } = require('../../utils/draw');
+const { buildPdf, toArrayBuffer } = require('../../utils/pdf');
 const { loadSignImages } = require('../../utils/signs');
 
 function canvasIdOf(index) {
@@ -203,38 +205,36 @@ Page({
 
   saveView() {
     if (this.exporting) return;
-    const lanes = this.data.lanes || [];
-    if (lanes.length === 0) return;
-    const files = [];
-    const grab = index => {
-      if (index >= lanes.length) {
+    this.ensureCanvas(() => {
+      wx.showLoading({ title: '生成图纸…' });
+      this.generateA4Pages(files => {
+        wx.hideLoading();
+        if (!files) {
+          wx.showToast({ title: '生成图片失败', icon: 'none' });
+          return;
+        }
         this.saveFiles(files);
-        return;
-      }
-      wx.createSelectorQuery()
-        .in(this)
-        .select(`#${lanes[index].canvasId}`)
-        .fields({ node: true, size: true })
-        .exec(res => {
-          if (!res || !res[0] || !res[0].node) {
-            wx.showToast({ title: '生成图片失败', icon: 'none' });
-            return;
-          }
-          wx.canvasToTempFilePath({
-            canvas: res[0].node,
-            success: file => {
-              files.push(file.tempFilePath);
-              grab(index + 1);
-            },
-            fail: () => wx.showToast({ title: '生成图片失败', icon: 'none' }),
-          });
-        });
-    };
-    grab(0);
+      });
+    });
   },
 
   exportA4() {
     if (this.exporting) return;
+    this.ensureCanvas(() => {
+      wx.showLoading({ title: '生成 PDF…' });
+      this.generatePdfPages(images => {
+        if (!images) {
+          wx.hideLoading();
+          wx.showToast({ title: '生成图纸失败', icon: 'none' });
+          return;
+        }
+        this.writePdf(images);
+      });
+    });
+  },
+
+  /** 获取第一个画布节点并确保标志图已加载，然后回调。 */
+  ensureCanvas(cb) {
     const firstId = (this.data.lanes[0] && this.data.lanes[0].canvasId) || 'road-0';
     wx.createSelectorQuery()
       .in(this)
@@ -246,11 +246,15 @@ Page({
           return;
         }
         this.canvasNode = res[0].node;
-        this.ensureSignImages(res[0].node).then(() => this.startExport(res[0].node));
+        this.ensureSignImages(res[0].node).then(() => cb());
       });
   },
 
-  startExport(canvas) {
+  /**
+   * 生成全部 A4 页临时图片（布置图页 + 一览表页），完成后回调图片文件路径数组。
+   * 失败时回调 null。
+   */
+  generateA4Pages(cb) {
     this.exporting = true;
     const specs = this.specs();
     const total = this.zones.reduce((s, z) => s + z.length, 0);
@@ -266,14 +270,13 @@ Page({
       { kind: 'table', pageNo: specs.length + 1 },
     ];
     const pageCount = pages.length;
-    wx.showLoading({ title: `生成图纸 1/${pageCount}` });
+    const canvas = this.canvasNode;
     const files = [];
     const drawPage = index => {
       if (index >= pages.length) {
-        wx.hideLoading();
         this.exporting = false;
         this.render();
-        this.saveFiles(files);
+        if (cb) cb(files);
         return;
       }
       const page = pages[index];
@@ -292,29 +295,147 @@ Page({
       } else {
         drawA4TablePage(ctx, { model, pageNo: page.pageNo, pageCount });
       }
-      wx.canvasToTempFilePath({
-        canvas,
-        success: res => {
-          files.push(res.tempFilePath);
-          drawPage(index + 1);
-        },
-        fail: () => {
-          wx.hideLoading();
-          this.exporting = false;
-          this.render();
-          wx.showToast({ title: '生成图片失败', icon: 'none' });
-        },
-      });
+      // type=2d 画完当帧未必刷到后备缓冲，下一帧再导出
+      wx.nextTick(() => this.capturePage(canvas, files, drawPage, index, cb));
     };
 
     try {
       drawPage(0);
     } catch (err) {
-      wx.hideLoading();
       this.exporting = false;
       this.render();
-      wx.showToast({ title: '生成失败', icon: 'none' });
+      if (cb) cb(null);
     }
+  },
+
+  /**
+   * 直接从 canvas 取像素做 PDF 页，避开微信 canvasToTempFilePath
+   * 有时给 PNG、有时给空 JPEG 的问题。
+   */
+  generatePdfPages(cb) {
+    this.exporting = true;
+    const specs = this.specs();
+    const total = this.zones.reduce((s, z) => s + z.length, 0);
+    const model = exportModel({
+      params: this.params,
+      zones: this.zones,
+      signRows: this.signRows,
+      total,
+      doubleSide: this.params.doubleSide,
+    });
+    const pages = [
+      ...specs.map((spec, index) => ({ kind: 'diagram', spec, pageNo: index + 1 })),
+      { kind: 'table', pageNo: specs.length + 1 },
+    ];
+    const pageCount = pages.length;
+    const canvas = this.canvasNode;
+    const images = [];
+    const W = PDF_PX.w;
+    const H = PDF_PX.h;
+    const drawPage = index => {
+      if (index >= pages.length) {
+        this.exporting = false;
+        this.render();
+        if (cb) cb(images);
+        return;
+      }
+      const page = pages[index];
+      wx.showLoading({ title: `生成图纸 ${index + 1}/${pageCount}` });
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(W / A4.w, 0, 0, W / A4.w, 0, 0);
+      if (page.kind === 'diagram') {
+        drawA4DiagramPage(ctx, {
+          spec: Object.assign({}, page.spec, { signImages: this.signImages }),
+          model,
+          pageNo: page.pageNo,
+          pageCount,
+        });
+      } else {
+        drawA4TablePage(ctx, { model, pageNo: page.pageNo, pageCount });
+      }
+      wx.nextTick(() => {
+        try {
+          const data = ctx.getImageData(0, 0, W, H);
+          images.push({ width: W, height: H, rgba: data.data });
+          drawPage(index + 1);
+        } catch (err) {
+          this.exporting = false;
+          this.render();
+          if (cb) cb(null);
+        }
+      });
+    };
+    try {
+      drawPage(0);
+    } catch (err) {
+      this.exporting = false;
+      this.render();
+      if (cb) cb(null);
+    }
+  },
+
+  capturePage(canvas, files, drawPage, index, cb) {
+    wx.canvasToTempFilePath({
+      canvas,
+      fileType: 'jpg',
+      quality: 1,
+      destWidth: A4_PX.w,
+      destHeight: A4_PX.h,
+      success: res => {
+        files.push(res.tempFilePath);
+        drawPage(index + 1);
+      },
+      fail: () => {
+        this.exporting = false;
+        this.render();
+        if (cb) cb(null);
+      },
+    });
+  },
+
+  writePdf(pages) {
+    let pdfBin;
+    try {
+      pdfBin = buildPdf(pages, { title: '高速公路作业区布置图' });
+    } catch (err) {
+      this.exporting = false;
+      this.render();
+      wx.hideLoading();
+      wx.showToast({ title: 'PDF 生成失败', icon: 'none' });
+      return;
+    }
+    const fs = wx.getFileSystemManager();
+    const dir = `${wx.env.USER_DATA_PATH}/roadzone`;
+    try {
+      fs.mkdirSync(dir, true);
+    } catch (err) { /* 已存在 */ }
+    const filePath = `${dir}/roadzone-${Date.now()}.pdf`;
+    try {
+      fs.writeFileSync(filePath, toArrayBuffer(pdfBin));
+    } catch (err) {
+      this.exporting = false;
+      this.render();
+      wx.hideLoading();
+      wx.showToast({ title: '保存文件失败', icon: 'none' });
+      return;
+    }
+    this.exporting = false;
+    this.render();
+    wx.hideLoading();
+    wx.vibrateShort({ type: 'light', fail: () => {} });
+    wx.openDocument({
+      filePath,
+      fileType: 'pdf',
+      showMenu: true,
+      success: () => {
+        wx.showToast({ title: 'PDF 已生成', icon: 'success' });
+      },
+      fail: () => {
+        wx.showToast({ title: 'PDF 已保存到本地', icon: 'success' });
+      },
+    });
   },
 
   saveFiles(files) {

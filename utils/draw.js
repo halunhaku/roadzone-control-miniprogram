@@ -461,8 +461,7 @@ function drawRoadDiagram(ctx, opts) {
   const warnTypes = {
     0: 'construction1600',
     400: 'smart',
-    600: limits.first === 80 ? 'limit80' : 'limit60',
-    800: 'construction800',
+    800: limits.first === 80 ? 'limit80' : 'limit60',
     1000: limits.final === 60 ? 'limit60' : 'limit40',
     1200: closeInner ? 'laneLeft' : 'laneRight',
   };
@@ -522,7 +521,7 @@ function drawRoadDiagram(ctx, opts) {
       const type = warnTypes[offset];
       const along = warnFirst + (warnLast - warnFirst) * t;
       marks.push({ along, type, side: 'work' });
-      if (type === 'construction1600' || type === 'construction800') {
+      if (type === 'construction1600') {
         marks.push({ along, type, side: 'opp' });
       }
     });
@@ -530,7 +529,6 @@ function drawRoadDiagram(ctx, opts) {
       along: alongAt(car.zones, 1, Math.min(50, car.zones[1].length)),
       type: guideType,
       side: 'work',
-      label: '导向标志',
       onRoad: true,
     });
     const bufferStart = alongAt(car.zones, 2, 0);
@@ -540,7 +538,6 @@ function drawRoadDiagram(ctx, opts) {
       along: bufferStart,
       type: 'fence',
       side: 'work',
-      label: '路栏',
       signAlong: bufferStart + bufferTravel * (SIGN_SIZE + 22),
       onRoad: true,
     });
@@ -1084,10 +1081,13 @@ function drawA4TablePage(ctx, opts) {
 }
 
 const A4_PX = { w: 2480, h: 3508 };
+/** PDF 取像素用 150dpi，避免 300dpi getImageData 在手机上内存爆掉 */
+const PDF_PX = { w: 1240, h: 1754 };
 
 module.exports = {
   A4,
   A4_PX,
+  PDF_PX,
   diagramLayout,
   laneSpecs,
   drawRoadDiagram,
