@@ -10,16 +10,13 @@
   padding: 16rpx 8rpx 28rpx;
 }
 .mark {
+  display: block;
   width: 84rpx;
   height: 84rpx;
   border-radius: 18rpx;
-  background: linear-gradient(135deg, #ff9f0a, #ff7a1a);
-  color: #fff;
-  font-weight: 800;
-  font-size: 34rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #1d1d1f;
   box-shadow: 0 6rpx 16rpx rgba(255, 159, 10, 0.35);
 }
 .heroText {

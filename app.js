@@ -1,5 +1,8 @@
+const { enableShareMenu } = require('./utils/share');
+
 App({
   onLaunch() {
-    // 纯本地计算，无网络请求、无登录态
+    enableShareMenu();
   },
 });
+

@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "输入参数",
+  "enableShareAppMessage": true,
+  "enableShareTimeline": true,
   "usingComponents": {}
 }

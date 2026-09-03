@@ -13,6 +13,13 @@ const {
 } = require('../../utils/draw');
 const { buildPdf, toArrayBuffer } = require('../../utils/pdf');
 const { loadSignImages } = require('../../utils/signs');
+const {
+  PATH,
+  enableShareMenu,
+  shareToFriend,
+  shareToTimeline,
+  isShareEntry,
+} = require('../../utils/share');
 
 function canvasIdOf(index) {
   return `road-${index}`;
@@ -29,7 +36,12 @@ Page({
     tip: '',
   },
 
-  onLoad() {
+  onLoad(options) {
+    if (isShareEntry(options)) {
+      this.leaving = true;
+      wx.reLaunch({ url: PATH });
+      return;
+    }
     this.params = wx.getStorageSync('rz:params') || Object.assign({}, defaults);
     this.params.doubleSide = !!this.params.doubleSide;
     this.params.warning = 1600;
@@ -89,8 +101,22 @@ Page({
   },
 
   onReady() {
+    if (this.leaving) return;
     this.fitWidth = this.measureFitWidth();
     this.render();
+  },
+
+  onShow() {
+    if (this.leaving) return;
+    enableShareMenu();
+  },
+
+  onShareAppMessage() {
+    return shareToFriend();
+  },
+
+  onShareTimeline() {
+    return shareToTimeline();
   },
 
   measureFitWidth() {

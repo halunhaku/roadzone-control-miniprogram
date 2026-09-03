@@ -1,6 +1,6 @@
 <view class="page pageIn">
   <view class="hero">
-    <view class="mark">RZ</view>
+    <image class="mark" src="/assets/icon-cone.png" mode="aspectFill" aria-hidden="true" />
     <view class="heroText">
       <view class="title">高速公路作业区布置系统</view>
       <view class="subtitle">Work Zone Layout Planner</view>

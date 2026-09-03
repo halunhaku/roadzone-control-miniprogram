@@ -1,4 +1,5 @@
 const { defaults, validate, parseStake, stake } = require('../../utils/calc');
+const { enableShareMenu, shareToFriend, shareToTimeline } = require('../../utils/share');
 
 /** 数字字段转 Number（input 输出字符串） */
 function normalize(p) {
@@ -64,6 +65,18 @@ Page({
 
   toggleAdvanced() {
     this.setData({ showAdvanced: !this.data.showAdvanced });
+  },
+
+  onShow() {
+    enableShareMenu();
+  },
+
+  onShareAppMessage() {
+    return shareToFriend();
+  },
+
+  onShareTimeline() {
+    return shareToTimeline();
   },
 
   handleGenerate() {

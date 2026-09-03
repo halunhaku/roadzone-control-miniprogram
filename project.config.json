@@ -2,7 +2,10 @@
   "description": "高速公路作业区布置系统 · 微信小程序端",
   "packOptions": {
     "ignore": [],
-    "include": []
+    "include": [
+      { "type": "file", "value": "assets/icon-cone.png" },
+      { "type": "file", "value": "assets/share-friend.png" }
+    ]
   },
   "setting": {
     "urlCheck": false,
