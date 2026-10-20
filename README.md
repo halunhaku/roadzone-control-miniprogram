@@ -1,3 +1,22 @@
+<!-- project-status:start -->
+## 项目状态与入口
+
+- **维护状态**：主线维护 · 工程系列微信客户端。
+- **项目入口**：在微信开发者工具中导入本仓库；具体步骤见下方「使用」。
+- **项目导航**：[全部项目与维护安排](https://github.com/halunhaku)。
+
+### 工程系列关系与同步约定
+
+| 仓库 | 职责 |
+| --- | --- |
+| [construction-hub](https://github.com/halunhaku/construction-hub) | 陌上主平台：项目、台账、三阶段影像及作业区布置 |
+| [roadzone-3d](https://github.com/halunhaku/roadzone-3d) | 独立 3D 工作台：沙盘预览、2D 联动与出图 |
+| [roadzone-control-miniprogram](https://github.com/halunhaku/roadzone-control-miniprogram) | 独立微信客户端：移动端参数输入、布置图与导出 |
+
+三个仓库继续独立运行与发布。涉及分区计算、桩号、限速阶梯、标志牌或导出规则的修改，应在变更说明中列出另外两端的影响与同步状态（已同步 / 待同步 / 不适用及原因），并用相同输入核对各端结果。界面与平台特有功能由各端独立维护。目前仍需跨仓库同步，尚未抽取共享计算模块。
+
+<!-- project-status:end -->
+
 # 路安作业区布置 · 微信小程序
 
 高速公路作业区（施工区）交通安全设施布置的微信小程序客户端，与 Web 平台（construction-hub）的布控图对齐，但**独立运行、独立发布**，不依赖平台后端。
